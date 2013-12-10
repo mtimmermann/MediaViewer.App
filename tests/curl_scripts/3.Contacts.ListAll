@@ -1,0 +1,17 @@
+#!/bin/bash
+
+service_call='contacts'
+
+source .config
+
+
+curl -v \
+    -b "connect.sid=$session_id; Path=/" \
+    -H "$header1" -H "$referer" \
+    "$url_base$service_call" > .tmp_body
+
+
+# Print the body
+body=`cat .tmp_body`
+echo "body:..."
+echo "$body"

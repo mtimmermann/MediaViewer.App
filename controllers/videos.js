@@ -1,0 +1,282 @@
+var Video = require('../models/Video'),
+    User = require('../models/User'),
+    ControllerAuth = require('../shared/controller_auth'),
+    AppUtils = require('../shared/utils'),
+    ControllerErrorHandler = require('../shared/controller_error_handler'),
+    ApplicationError = require('../shared/error/ApplicationError'),
+    logger = require('../shared/logger'),
+    //fs = require('fs'),
+    fs = require('../vendor/node-fs'),
+    pathUtil = require('path'), // Node path module
+    util = require('util'), // Node util module
+    exec = require('child_process').exec,
+    $ = require('jquery');
+
+module.exports.controllers = function(app) {
+
+    //app.get('/videos', ControllerAuth.authorize, function(req, res) {
+    app.get('/videos', function(req, res) {
+
+        var page = getIntParam(req.query.page);
+        var pageSize = getIntParam(req.query.pageSize)
+        var search = req.query.search;
+
+        if (search) {
+            Video.find(
+                {
+                    ownerId: req.session.user._id,
+                    '$or':[
+                        {'title':{'$regex':search, '$options':'i'}},
+                        {'subtitle':{'$regex':search, '$options':'i'}}]
+                },
+                function(err, docs) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    res.send(JSON.stringify({ data: docs }));
+            });
+        } else {
+            //getCountFunctionDefered(req.session.user._id, function(err1, count) {
+            getCount({}, function(err1, count) {
+                if (err1) { return ControllerErrorHandler.handleError(req, res, err1); }
+
+                //var sortBy = req.query.sort_by ? req.query.sort_by : 'lastName';
+                var sortBy = req.query.sort_by ? req.query.sort_by : 'created';
+                var argOrder = req.query.order ? req.query.order : 'asc';
+                var sortOrder = argOrder === 'desc' ? -1 : 1;
+                var sortObj = {};
+                sortObj[sortBy] = sortOrder;
+
+                if (page && pageSize) {
+                    var top = (page -1) * pageSize;
+                    var start = top - pageSize;
+                    if (start < count) {
+
+                        // Note, the following sytax is used w/ Mongojs
+                        // TODO: Determine how to ingore case with sort
+                        // return db.contacts.find().sort(sortObj).skip((page-1) * pageSize).limit(pageSize, function(err, docs) {
+                        //     res.send(JSON.stringify({ totalRecords: count, page: page, data: docs }));
+                        // });
+
+                        // TODO: Determine how to ingore case with sort
+                        //return Video.find({ ownerId: req.session.user._id }).sort(sortObj).skip((page-1) * pageSize).limit(pageSize).exec(function(err, docs) {
+                        return Video.find({ }).sort(sortObj).skip((page-1) * pageSize).limit(pageSize).exec(function(err, docs) {
+                            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                            res.send(JSON.stringify({ totalRecords: count, page: page, data: docs }));
+                        });
+                    }
+                    res.send(JSON.stringify({ totalRecords: count, page: page, data: [] }));
+                } else {
+                    //return Video.find({ ownerId: req.session.user._id }).sort(sortObj).exec(function(err, docs) {
+                    return Video.find({}).sort(sortObj).exec(function(err, docs) {
+                        if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                        res.send(JSON.stringify({ totalRecords: count, data: docs }));
+                    });
+                }
+            });
+        }
+    });
+
+    //app.get('/videos/:id', ControllerAuth.authorize, function(req, res) {
+    app.get('/videos/:id', function(req, res) {
+
+        Video.findById(req.params.id, function(err, doc) {
+            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+            if (doc) {
+                //if (doc.ownerId === req.session.user._id) {
+                var result = doc.toObject();
+                result.id = doc._id;
+                delete result._id;
+                res.send(JSON.stringify(result));
+            } else {
+                res.statusCode = 404;
+                return res.send(JSON.stringify({
+                    code: res.statusCode,
+                    message: 'Error 404: contact not found'}));
+            }
+        });
+    });
+
+    app.put('/videos/:id', ControllerAuth.authorize, function(req, res) {
+
+        var videoObj = req.body;
+        delete videoObj.id;
+
+        User.findById(req.session.user._id, function(err, user) {
+            if (err) { ControllerErrorHandler.logError(err); }
+            if (user) {
+                videoObj.userLabel = util.format('%s %s', user.firstName, user.lastName);
+            }
+
+            Video.findById(req.params.id, function(err, video) {
+                if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                if (!video) {
+                    res.statusCode = 404;
+                    res.send(JSON.stringify({
+                        code: res.statusCode,
+                        message: 'Error 404: video not found'
+                    }));
+                }
+                if (video.ownerId === req.session.user._id) {
+                    // Using Schema.save, not Schema.findByIdAndUpdate as only save
+                    //  executes Schema.pre('save')
+                    // Mongoose issue: pre, post middleware are not executed on findByIdAndUpdate
+                    // https://github.com/LearnBoost/mongoose/issues/964
+                    //Video.findByIdAndUpdate(req.params.id, videoObj, { new: true }, function(err, doc) {
+                    video = $.extend(video, videoObj);
+                    video.save(function(err, doc) {
+                        if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                        var result = doc.toObject();
+                        result.id = doc._id;
+                        delete result._id;
+                        res.send(JSON.stringify(result));
+                    });
+                } else {
+                    // User does not own video, not authorized
+                    res.statusCode = 403;
+                    res.send(JSON.stringify({
+                        code: res.statusCode,
+                        message: 'Not Authorized'
+                    }));
+                }
+            });
+        });
+    });
+
+    app.post('/videos', ControllerAuth.authorize, function(req, res) {
+        var jsonModel = req.body;
+        delete jsonModel.id;
+        jsonModel.ownerId = req.session.user._id;
+
+        User.findById(req.session.user._id, function(err, user) {
+            if (err) { ControllerErrorHandler.logError(err); }
+            if (user) {
+                jsonModel.userLabel = util.format('%s %s', user.firstName, user.lastName);
+            }
+
+            var video = new Video(jsonModel).save(function (err, doc) {
+                if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                var result = doc.toObject();
+                result.id = doc._id;
+                delete result._id;
+                res.send(JSON.stringify(result));
+            });
+        });
+    });
+
+    app.delete('/videos/:id', ControllerAuth.authorize, function(req, res) {
+
+        Video.findById(req.params.id, function(err, doc) {
+            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+            if (!doc) {
+                res.statusCode = 404;
+                res.send(JSON.stringify({
+                    code: res.statusCode,
+                    message: 'Error 404: contact not found'
+                }));
+            }
+            if (doc.ownerId === req.session.user._id) {
+                Video.findByIdAndRemove(req.params.id, function(err, result) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    res.send(JSON.stringify({ IsSuccess: true }));
+                });
+            } else {
+                // User does not own video, not authorized
+                res.statusCode = 403;
+                res.send(JSON.stringify({
+                    code: res.statusCode,
+                    message: 'Not Authorized'
+                }));
+            }
+        });
+    });
+
+    app.post('/videos/upload', ControllerAuth.authorize, function(req, res) {
+
+        var fileName = req.files.file.name; 
+
+        // ffmpeg thumbnails
+        // https://trac.ffmpeg.org/wiki/Create%20a%20thumbnail%20image%20every%20X%20seconds%20of%20the%20video
+
+        // TODO: Determine file type info with ffmpeg || ffprobe, don't trust the extension.
+        // req.files.file.type
+        var ext = pathUtil.extname(fileName).toLowerCase();
+        if ($.inArray(ext, ['.ogg', '.ogv', '.webm', '.mp4', '.mov']) >= 0) {
+            var dirPath = 'media/'+ req.session.user._id +'/';
+
+            if (!fs.existsSync(dirPath)) {
+                //fs.mkdirSync(dirPath, 0644, true);
+                fs.mkdirSync(dirPath, 0755, true);
+            }
+
+            fileName = AppUtils.randomObjectId() +'_'+ fileName;
+
+            logger.log('info', util.format('Saving video file[%s]', dirPath + fileName));
+            require('fs').rename(req.files.file.path, dirPath + fileName, function(err) {
+                if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+
+                createThumbnail(dirPath + fileName, function(err, imageFile) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                     res.json({
+                        IsSuccess: true,
+                        uri: dirPath + fileName,
+                        thumbnail: imageFile
+                    });
+                });
+            });
+
+        } else {
+            // TODO: Convert to flv via ffmpeg
+            // var dirPath = 'media/stage/'+ req.session.user._id +'/';
+            // if (!fs.existsSync(dirPath)) {
+            //     //fs.mkdirSync(dirPath, 0644, true);
+            //     fs.mkdirSync(dirPath, 0755, true);
+            // }
+
+            var err = new ApplicationError.FileTypeError(util.format(
+                'Cannot process file[%s], expecting file types: ' +
+                '.ogg, .webm, .mov', req.files.file.name));
+            err.status = 500;
+            return ControllerErrorHandler.handleError(req, res, err);
+        }
+    });
+
+
+    /**
+     * Helper methods
+     */
+    function getIntParam(param) {
+        if (typeof param === 'string' && (/^\d+$/).test(param)) {
+            return parseInt(param, 10);
+        }
+        return null;
+    }
+
+    // function getCountFunctionDefered(userId) {
+    //     var deferred = $.Deferred();
+    //     Video.count({ ownerId: userId }, function(err, count) {
+    //         deferred.resolve(count);
+    //     });
+    //     return deferred.promise();
+    // }
+    function getCount(options, fn) {
+        options = options || {};
+        //Video.count({ ownerId: userId }, function(err, count) {
+        Video.count(options, function(err, count) {
+            if (err) return fn(err, null);
+            fn(null, count);
+        });
+    }
+
+    function createThumbnail(videoFile, fn) {
+        var ext = pathUtil.extname(videoFile);
+        var baseName = pathUtil.basename(videoFile, ext);
+        var imgFile = pathUtil.dirname(videoFile) +'/'+ baseName +'.png';
+
+        var args = util.format('-i %s -ss 00:00:10.00 -f image2 -vframes 1 %s', videoFile, imgFile);
+        var child = exec('./ffmpeg/ffmpeg '+ args, // command line argument directly in string
+            function (error, stdout, stderr) {      // one easy function to capture data/errors
+            if (error) return fn(error, null);
+            fn(null, imgFile);
+        });
+    }
+
+}

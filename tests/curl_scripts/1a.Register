@@ -1,0 +1,30 @@
+#!/bin/bash
+
+service_call='register'
+
+firstName='test1'
+lastName='testing1'
+
+
+source .config
+
+
+# Output verbose curl result to .tmp_login file (contains the new Session ID)
+#curl -v --insecure -X POST -d "username=$email&password=$password" "$url_base$service_call" > .tmp_login 2>&1
+curl -v -X POST \
+    -d '{"email":"'"$username"'","password":"'"$password"'","firstName":"'"$firstName"'","lastName":"'"$lastName"'"}' \
+    -H "Content-Type: application/json" \
+    -H "$header1" -H "$referer" \
+    "$url_base$service_call" > .tmp_login 2>&1
+
+# Print out the verbose result
+output=`cat .tmp_login`
+echo "$output"
+
+# Edit 
+sed -i.bak -ne s/.*connect.sid=//p .tmp_login
+sed -i.bak -ne s/\;.*//p .tmp_login
+
+# Set the session_id
+session_id=`cat .tmp_login`
+echo "SessionID: $session_id"

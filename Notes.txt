@@ -1,0 +1,117 @@
+
+Notes and resources
+-------------------
+
+Mongo or Redis session storage
+http://blog.modulus.io/nodejs-and-express-sessions
+
+MVC w/ node & express
+http://timstermatic.github.io/blog/2013/08/17/a-simple-mvc-framework-with-node-and-express/
+/**
+ * Middlewares and configurations 
+ */
+app.configure(function () {
+    app.use(express.bodyParser());
+    app.use(express.cookieParser('Contacts App'));
+    app.use(express.session({
+        store: new MongoSessionStore({
+            url: settings.db.url
+        }),
+        secret: '1234567890QWERTY'
+    }));
+
+    app.use(express.static(path.join(__dirname, 'public')));
+    app.set('views', __dirname + '/views');
+    app.set('view engine', 'jade');
+});
+
+Mongoose - MongoDB
+------------------
+
+Schema inheritance:
+  https://npmjs.org/package/mongoose-schema-extend
+
+Timestamps:
+  mongoose-timestamp: https://github.com/drudge/mongoose-timestamp
+        "mongoose-timestamp": "~0.1.1",
+  mongoose-createdmodified: https://npmjs.org/package/mongoose-createdmodified
+        "mongoose-createdmodified": "~0.0.2",
+  mongoose-troop: https://github.com/tblobaum/mongoose-troop#timestamp
+        Inlcudes other utilities, looks impressive
+
+
+  Use Schema.save, not Schema.findByIdAndUpdate as only save executes Schema.pre('save')
+  Mongoose issue: pre, post middleware are not executed on findByIdAndUpdate
+  https://github.com/LearnBoost/mongoose/issues/964
+
+
+
+Winston logging
+----------------
+https://github.com/flatiron/winston
+http://docs.nodejitsu.com/articles/intermediate/how-to-log
+
+Log levels
+https://github.com/flatiron/winston/blob/master/lib/winston/config/npm-config.js
+npmConfig.levels = {
+  silly: 0,
+  debug: 1,
+  verbose: 2,
+  info: 3,
+  warn: 4,
+  error: 5
+};
+
+
+Node.js model validation
+------------------------
+https://npmjs.org/package/nodejs-model
+
+Mongoose validation
+http://mongoosejs.com/docs/validation.html
+
+
+Exceptions
+----------
+See the mongoose repo for Error classes
+https://github.com/LearnBoost/mongoose/blob/master/lib/error.js
+https://github.com/LearnBoost/mongoose/tree/master/lib/error
+
+
+Video conversion
+----------------
+http://www.ffmpeg.org/download.html
+http://ffmpeg.gusari.org/static/
+
+https://github.com/schaermu/node-fluent-ffmpeg
+
+
+Flv streaming
+-------------
+http://pauldbergeron.com/code/networking/nodejs/coffeescript/streaming-youtube-to-mp3-audio-in-nodejs.html
+
+https://github.com/lucasa/node-streamer
+
+http://meloncholy.com/blog/vidstreamer-js-a-simple-node-js-video-streamer/
+https://github.com/meloncholy/vid-streamer
+
+http://www.w3schools.com/html/html5_video.asp
+
+Open source Html5 video player
+http://www.videojs.com/
+https://github.com/videojs/video.js/blob/v4.3.0/docs/guides/setup.md
+
+NGINX flv stream modeule
+http://wiki.nginx.org/NginxHttpFlvStreamModule
+
+
+Html5 video, seek:
+var video = document.getElementById('video');
+video.currentTime = 18;
+
+https://npmjs.org/package/flvee
+
+
+execSync nodejs module:
+https://npmjs.org/package/execSync
+

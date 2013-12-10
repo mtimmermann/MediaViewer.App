@@ -1,0 +1,24 @@
+#!/bin/bash
+
+
+service_call='contacts'
+
+firstName='Test1'
+lastName='Testing1'
+email='test1@test.com'
+
+source .config
+
+
+curl -v -X POST \
+    -b "connect.sid=$session_id; Path=/" \
+    -d '{"firstName":"'"$firstName"'","lastName":"'"$lastName"'","email1":"'"$email"'","email1_note":"","phone1":"","phone1_note":"","city":"","region":"Colorado","country":"USA","picture":null,"description":""}' \
+    -H "Content-Type: application/json" \
+    -H "$header1" -H "$referer" \
+    "$url_base$service_call" > .tmp_body
+
+
+# Print the body
+body=`cat .tmp_body`
+echo "body:..."
+echo "$body"

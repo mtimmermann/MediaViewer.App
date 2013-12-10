@@ -1,0 +1,12 @@
+#!/bin/bash
+
+file='IMG_0425'
+
+
+echo "--------------------"
+#./ffmpeg -i $file.MOV -f flv $file.flv
+./ffmpeg -i $file.MOV -f mpeg $file.mpeg
+
+
+#flvtool2 - U %file%.flv
+
