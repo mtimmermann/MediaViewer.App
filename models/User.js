@@ -16,6 +16,15 @@ var UserSchema = new mongoose.Schema({
     hash: String
 });
 
+// Ensure hash and salt are removed from the returned json result
+UserSchema.set('toJSON', { 
+    transform: function(doc, ret, options) {
+        delete ret.hash;
+        delete ret.salt;
+        return ret;
+    }
+});
+
 UserSchema.path('email').validate(function (email) {
     return ModelValidation.isEmailValid(email);
 }, 'Invalid email');

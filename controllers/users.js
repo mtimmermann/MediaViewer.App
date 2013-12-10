@@ -20,7 +20,7 @@ module.exports.controllers = function(app) {
                     'session', req.session.user._id));
                 err.status = 500;
                 req.session.destroy();
-                return errorHandler(req, res, err);
+                return ControllerErrorHandler.handleError(req, res, err);
             }
 
             var result = user.toObject();
@@ -29,6 +29,32 @@ module.exports.controllers = function(app) {
             delete result.salt;
             delete result.hash;
             res.send(JSON.stringify(result));
+        });
+    });
+
+    app.get('/users', ControllerAuth.authorize, ControllerAuth.admin, function(req, res) {
+
+        getCount({}, function(err1, count) {
+            if (err1) { return ControllerErrorHandler.handleError(req, res, err1); }
+
+            var sortBy = req.query.sort_by ? req.query.sort_by : 'lastName';
+            var argOrder = req.query.order ? req.query.order : 'asc';
+            var sortOrder = argOrder === 'desc' ? -1 : 1;
+            var sortObj = {};
+            sortObj[sortBy] = sortOrder;
+
+            return User.find({}).sort(sortObj).exec(function(err, docs) {
+                if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                // var results = [];
+                // $.each(docs, function(index, doc) {
+                //     var result = doc.toObject();
+                //     delete result.hash;
+                //     delete result.salt;
+                //     results.push(result);    
+                // });
+                // res.send(JSON.stringify({ totalRecords: count, data: results }));
+                res.send(JSON.stringify({ totalRecords: count, data: docs }));
+            });
         });
     });
 
@@ -164,4 +190,11 @@ module.exports.controllers = function(app) {
         });
     }
 
+    function getCount(options, fn) {
+        options = options || {};
+        User.count(options, function(err, count) {
+            if (err) return fn(err, null);
+            fn(null, count);
+        });
+    }
 }

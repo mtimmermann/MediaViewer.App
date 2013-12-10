@@ -44,6 +44,9 @@ Timestamps:
   Mongoose issue: pre, post middleware are not executed on findByIdAndUpdate
   https://github.com/LearnBoost/mongoose/issues/964
 
+  // Exlude fields in returned json result
+  http://stackoverflow.com/questions/11160955/how-to-exclude-some-fields-from-the-document
+
 
 
 Winston logging
