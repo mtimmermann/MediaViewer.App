@@ -101,26 +101,39 @@ module.exports.controllers = function(app) {
     app.put('/users/:id', ControllerAuth.admin, function(req, res) {
 
         var jsonModel = req.body;
-        delete jsonModel.id;
 
-        User.findById(req.params.id, function(err, user) {
-            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-            if (!user) {
-                res.statusCode = 404;
-                res.send(JSON.stringify({
-                    code: res.statusCode,
-                    message: 'Error 404: user not found'
-                }));
-            }
-            // Using Schema.save, not Schema.findByIdAndUpdate as only save
-            //  executes Schema.pre('save')
-            // Mongoose issue: pre, post middleware are not executed on findByIdAndUpdate
-            // https://github.com/LearnBoost/mongoose/issues/964
-            //User.findByIdAndUpdate(req.params.id, jsonModel, { new: true }, function(err, doc) {
-            user = $.extend(user, jsonModel);
-            user.save(function(err, doc) {
+        // If password change is requested, update the salt and hash
+        var deferred = $.Deferred();
+        if (req.body.password) {
+            logger.log('info', util.format('Admin[userId:%s] password change operation for user[%s]', req.session.user._id, jsonModel.id));
+            hash(req.body.password, function (err, salt, hash) {
+                jsonModel = $.extend(jsonModel, { salt: salt, hash: hash });
+                deferred.resolve();
+            });
+        } else {
+            deferred.resolve();
+        }
+
+        $.when(deferred).done(function() {
+            User.findById(req.params.id, function(err, user) {
                 if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-                res.send(JSON.stringify(doc));
+                if (!user) {
+                    res.statusCode = 404;
+                    res.send(JSON.stringify({
+                        code: res.statusCode,
+                        message: 'Error 404: user not found'
+                    }));
+                }
+                // Using Schema.save, not Schema.findByIdAndUpdate as only save
+                //  executes Schema.pre('save')
+                // Mongoose issue: pre, post middleware are not executed on findByIdAndUpdate
+                // https://github.com/LearnBoost/mongoose/issues/964
+                //User.findByIdAndUpdate(req.params.id, jsonModel, { new: true }, function(err, doc) {
+                user = $.extend(user, jsonModel);
+                user.save(function(err, doc) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    res.send(JSON.stringify(doc));
+                });
             });
         });
     });
