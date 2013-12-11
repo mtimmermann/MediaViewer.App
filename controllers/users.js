@@ -79,6 +79,25 @@ module.exports.controllers = function(app) {
         }
     });
 
+    app.get('/users/:id', ControllerAuth.authorize, ControllerAuth.admin, function(req, res) {
+
+        User.findById(req.params.id, function(err, doc) {
+            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+            if (doc) {
+                // var result = doc.toObject();
+                // result.id = doc._id;
+                // delete result._id;
+                // res.send(JSON.stringify(result));
+                res.send(JSON.stringify(doc));
+            } else {
+                res.statusCode = 404;
+                return res.send(JSON.stringify({
+                    code: res.statusCode,
+                    message: 'Error 404: user not found'}));
+            }
+        });
+    });
+
     app.post('/register', isUserUnique, function (req, res) {
         var password = req.body.password;
 

@@ -21,6 +21,8 @@ UserSchema.set('toJSON', {
     transform: function(doc, ret, options) {
         delete ret.hash;
         delete ret.salt;
+        ret.id = ret._id;
+        delete ret._id;
         return ret;
     }
 });
