@@ -1,8 +1,8 @@
 var Video = require('../models/Video'),
     User = require('../models/User'),
     ControllerAuth = require('../shared/controller_auth'),
-    AppUtils = require('../shared/utils'),
     ControllerErrorHandler = require('../shared/controller_error_handler'),
+    AppUtils = require('../shared/utils'),
     ApplicationError = require('../shared/error/ApplicationError'),
     logger = require('../shared/logger'),
     //fs = require('fs'),
@@ -14,11 +14,10 @@ var Video = require('../models/Video'),
 
 module.exports.controllers = function(app) {
 
-    //app.get('/videos', ControllerAuth.authorize, function(req, res) {
     app.get('/videos', function(req, res) {
 
-        var page = getIntParam(req.query.page);
-        var pageSize = getIntParam(req.query.pageSize)
+        var page = AppUtils.getIntParam(req.query.page);
+        var pageSize = AppUtils.getIntParam(req.query.pageSize)
         var search = req.query.search;
 
         if (search) {
@@ -243,12 +242,12 @@ module.exports.controllers = function(app) {
     /**
      * Helper methods
      */
-    function getIntParam(param) {
-        if (typeof param === 'string' && (/^\d+$/).test(param)) {
-            return parseInt(param, 10);
-        }
-        return null;
-    }
+    // function getIntParam(param) {
+    //     if (typeof param === 'string' && (/^\d+$/).test(param)) {
+    //         return parseInt(param, 10);
+    //     }
+    //     return null;
+    // }
 
     // function getCountFunctionDefered(userId) {
     //     var deferred = $.Deferred();

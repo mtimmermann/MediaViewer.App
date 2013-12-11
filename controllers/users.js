@@ -1,6 +1,7 @@
 var User = require('../models/User'),
     ControllerAuth = require('../shared/controller_auth'),
     ControllerErrorHandler = require('../shared/controller_error_handler'),
+    AppUtils = require('../shared/utils'),
     ApplicationError = require('../shared/error/ApplicationError'),
     hash = require('../shared/pass').hash,
     logger = require('../shared/logger'),
@@ -22,40 +23,60 @@ module.exports.controllers = function(app) {
                 req.session.destroy();
                 return ControllerErrorHandler.handleError(req, res, err);
             }
-
-            var result = user.toObject();
-            result.id = user._id;
-            delete result._id;
-            delete result.salt;
-            delete result.hash;
-            res.send(JSON.stringify(result));
+            res.send(JSON.stringify(user));
         });
     });
 
     app.get('/users', ControllerAuth.authorize, ControllerAuth.admin, function(req, res) {
 
-        getCount({}, function(err1, count) {
-            if (err1) { return ControllerErrorHandler.handleError(req, res, err1); }
+        var page = AppUtils.getIntParam(req.query.page);
+        var pageSize = AppUtils.getIntParam(req.query.pageSize)
+        var search = req.query.search;
 
-            var sortBy = req.query.sort_by ? req.query.sort_by : 'lastName';
-            var argOrder = req.query.order ? req.query.order : 'asc';
-            var sortOrder = argOrder === 'desc' ? -1 : 1;
-            var sortObj = {};
-            sortObj[sortBy] = sortOrder;
-
-            return User.find({}).sort(sortObj).exec(function(err, docs) {
-                if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-                // var results = [];
-                // $.each(docs, function(index, doc) {
-                //     var result = doc.toObject();
-                //     delete result.hash;
-                //     delete result.salt;
-                //     results.push(result);    
-                // });
-                // res.send(JSON.stringify({ totalRecords: count, data: results }));
-                res.send(JSON.stringify({ totalRecords: count, data: docs }));
+        if (search) {
+            User.find(
+                {
+                    ownerId: req.session.user._id,
+                    '$or':[
+                        {'lastName':{'$regex':search, '$options':'i'}},
+                        {'firstName':{'$regex':search, '$options':'i'}}]
+                },
+                function(err, docs) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    res.send(JSON.stringify({ data: docs }));
             });
-        });
+        } else {
+
+            getCount({}, function(err1, count) {
+                if (err1) { return ControllerErrorHandler.handleError(req, res, err1); }
+
+                if (page && pageSize) {
+                    var top = (page -1) * pageSize;
+                    var start = top - pageSize;
+                    if (start < count) {
+
+                        // TODO: Determine how to ingore case with sort
+                        //return User.find({ ownerId: req.session.user._id }).sort(sortObj).skip((page-1) * pageSize).limit(pageSize).exec(function(err, docs) {
+                        return User.find({}).sort(sortObj).skip((page-1) * pageSize).limit(pageSize).exec(function(err, docs) {
+                            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                            res.send(JSON.stringify({ totalRecords: count, page: page, data: docs }));
+                        });
+                    }
+                    res.send(JSON.stringify({ totalRecords: count, page: page, data: [] }));
+                } else {
+                    var sortBy = req.query.sort_by ? req.query.sort_by : 'lastName';
+                    var argOrder = req.query.order ? req.query.order : 'asc';
+                    var sortOrder = argOrder === 'desc' ? -1 : 1;
+                    var sortObj = {};
+                    sortObj[sortBy] = sortOrder;
+
+                    return User.find({}).sort(sortObj).exec(function(err, docs) {
+                        if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                        res.send(JSON.stringify({ totalRecords: count, data: docs }));
+                    });
+                }
+            });
+        }
     });
 
     app.post('/register', isUserUnique, function (req, res) {

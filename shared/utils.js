@@ -1,9 +1,13 @@
 var crypto = require('crypto');
 
-var Utils = {};
-
-Utils.randomObjectId = function() {
+exports.randomObjectId = function() {
     return crypto.createHash('md5').update(Math.random().toString()).digest('hex').substring(0, 24);
 }
 
-module.exports = Utils;
+exports.getIntParam = function(param) {
+    if (typeof param === 'string' && (/^\d+$/).test(param)) {
+        return parseInt(param, 10);
+    }
+    return null;
+}
+
