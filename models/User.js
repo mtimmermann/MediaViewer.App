@@ -22,7 +22,7 @@ UserSchema.set('toJSON', {
         delete ret.hash;
         delete ret.salt;
         ret.id = ret._id;
-        delete ret._id;
+        //delete ret._id;
         return ret;
     }
 });

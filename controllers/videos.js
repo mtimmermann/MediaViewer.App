@@ -169,7 +169,7 @@ module.exports.controllers = function(app) {
                 res.statusCode = 404;
                 res.send(JSON.stringify({
                     code: res.statusCode,
-                    message: 'Error 404: contact not found'
+                    message: 'Error 404: video not found'
                 }));
             }
             if (doc.ownerId === req.session.user._id) {

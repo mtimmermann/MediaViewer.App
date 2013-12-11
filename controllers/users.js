@@ -27,7 +27,7 @@ module.exports.controllers = function(app) {
         });
     });
 
-    app.get('/users', ControllerAuth.authorize, ControllerAuth.admin, function(req, res) {
+    app.get('/users', ControllerAuth.admin, function(req, res) {
 
         var page = AppUtils.getIntParam(req.query.page);
         var pageSize = AppUtils.getIntParam(req.query.pageSize)
@@ -36,7 +36,7 @@ module.exports.controllers = function(app) {
         if (search) {
             User.find(
                 {
-                    ownerId: req.session.user._id,
+                    //ownerId: req.session.user._id,
                     '$or':[
                         {'lastName':{'$regex':search, '$options':'i'}},
                         {'firstName':{'$regex':search, '$options':'i'}}]
@@ -79,7 +79,7 @@ module.exports.controllers = function(app) {
         }
     });
 
-    app.get('/users/:id', ControllerAuth.authorize, ControllerAuth.admin, function(req, res) {
+    app.get('/users/:id', ControllerAuth.admin, function(req, res) {
 
         User.findById(req.params.id, function(err, doc) {
             if (err) { return ControllerErrorHandler.handleError(req, res, err); }
@@ -95,6 +95,61 @@ module.exports.controllers = function(app) {
                     code: res.statusCode,
                     message: 'Error 404: user not found'}));
             }
+        });
+    });
+
+    app.put('/users/:id', ControllerAuth.admin, function(req, res) {
+
+        var jsonModel = req.body;
+        delete jsonModel.id;
+
+        User.findById(req.params.id, function(err, user) {
+            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+            if (!user) {
+                res.statusCode = 404;
+                res.send(JSON.stringify({
+                    code: res.statusCode,
+                    message: 'Error 404: user not found'
+                }));
+            }
+            // Using Schema.save, not Schema.findByIdAndUpdate as only save
+            //  executes Schema.pre('save')
+            // Mongoose issue: pre, post middleware are not executed on findByIdAndUpdate
+            // https://github.com/LearnBoost/mongoose/issues/964
+            //User.findByIdAndUpdate(req.params.id, jsonModel, { new: true }, function(err, doc) {
+            user = $.extend(user, jsonModel);
+            user.save(function(err, doc) {
+                if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                res.send(JSON.stringify(doc));
+            });
+        });
+    });
+
+    // app.post('/users', ControllerAuth.admin, function(req, res) {
+    //     var jsonModel = req.body;
+    //     delete jsonModel.id;
+
+    //     var user = new User(jsonModel).save(function (err, doc) {
+    //         if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+    //         res.send(JSON.stringify(doc));
+    //     });
+    // });
+
+    app.delete('/users/:id', ControllerAuth.admin, function(req, res) {
+
+        User.findById(req.params.id, function(err, doc) {
+            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+            if (!doc) {
+                res.statusCode = 404;
+                res.send(JSON.stringify({
+                    code: res.statusCode,
+                    message: 'Error 404: user not found'
+                }));
+            }
+            User.findByIdAndRemove(req.params.id, function(err, result) {
+                if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                res.send(JSON.stringify({ IsSuccess: true }));
+            });
         });
     });
 

@@ -12,8 +12,6 @@ exports.authorize = function(req, res, next) {
 }
 
 exports.admin = function(req, res, next) {
-    var isAuthorized = false;
-
     if (req.session.user) {
         User.findById(req.session.user._id, function(err, user) {
             if (err) { return ControllerErrorHandler.handleError(req, res, err); }
