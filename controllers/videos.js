@@ -242,7 +242,7 @@ module.exports.controllers = function(app) {
         }
     });
 
-    app.get('/video/orphans', function(req, res) {
+    app.get('/video/orphans', ControllerAuth.admin, function(req, res) {
         var orphans = [];
         Video.find(function(err, docs) {
             if (err) { return ControllerErrorHandler.handleError(req, res, err); }
@@ -250,7 +250,6 @@ module.exports.controllers = function(app) {
             $.each(docs, function(index, doc) {
                 User.findById(doc.ownerId, function(err, user) {
                     if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-                    console.log(doc._id);
                     if (!user) {
                         orphans.push(doc);
                     }
@@ -260,7 +259,7 @@ module.exports.controllers = function(app) {
                 });
             });
             $.when(deferred).done(function() {
-                res.send(JSON.stringify(orphans));
+                res.send(JSON.stringify({ totalRecords: orphans.length, data: orphans }));
             });
         });
     });

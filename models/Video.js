@@ -18,5 +18,13 @@ var VideoSchema = MediaItem.extend({
     origExt: String
 });
 
+VideoSchema.set('toJSON', { 
+    transform: function(doc, ret, options) {
+        ret.id = ret._id;
+        //delete ret._id;
+        return ret;
+    }
+});
+
 var Video = mongoose.model('video', VideoSchema);
 module.exports = Video;
