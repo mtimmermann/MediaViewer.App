@@ -25,11 +25,12 @@ exports.deleteFiles = function(files) {
     });
 }
 
-exports.logError = function(err) {
+logError = function(err) {
     logger.log('error', err.message, getAllErrorInfo(err));
 }
+exports.logError = logError;
 
-exports.getAllErrorInfo = function(err) {
+getAllErrorInfo = function(err) {
     var info = {
         name: err.name,
         message: err.message,
@@ -42,3 +43,4 @@ exports.getAllErrorInfo = function(err) {
 
     return info;
 }
+exports.getAllErrorInfo = getAllErrorInfo;

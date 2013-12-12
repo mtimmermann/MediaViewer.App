@@ -264,6 +264,27 @@ module.exports.controllers = function(app) {
         });
     });
 
+    app.delete('/video/orphans', ControllerAuth.admin, function(req, res) {
+        var orphanIds = req.body;
+
+        var deferred = $.Deferred();
+        $.each(orphanIds, function(index, id) {
+            Video.findById(id, function(err, doc) {
+                if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+
+                AppUtils.deleteFiles([doc.uri, doc.thumbnail]);
+                Video.findByIdAndRemove(id, function(err, result) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    if (index === orphanIds.length -1) {
+                        deferred.resolve();
+                    }
+                });
+            });
+        });
+        $.when(deferred).done(function() {
+            res.send(JSON.stringify({ totalRecords: orphanIds.length, data: orphanIds }));
+        });
+    });
 
     /**
      * Helper methods
