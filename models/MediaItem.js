@@ -13,6 +13,8 @@ var MediaItemSchema = new mongoose.Schema({
     title: String,
     subTitle: String,
     notes: String,
+    uri: { type: String, required: true },
+    fileId: { type: String, required: true },
     userLabel: { type: String, default: '' },
     isPublic: { type: Boolean, default: true }
 }, { collection : 'mediaItems', discriminatorKey : '_type' });

@@ -165,6 +165,7 @@ module.exports.controllers = function(app) {
 
         Video.findById(req.params.id, function(err, doc) {
             if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+
             if (!doc) {
                 res.statusCode = 404;
                 res.send(JSON.stringify({
@@ -173,6 +174,7 @@ module.exports.controllers = function(app) {
                 }));
             }
             if (doc.ownerId === req.session.user._id) {
+                deleteVideoFiles([doc.uri, doc.thumbnail]);
                 Video.findByIdAndRemove(req.params.id, function(err, result) {
                     if (err) { return ControllerErrorHandler.handleError(req, res, err); }
                     res.send(JSON.stringify({ IsSuccess: true }));
@@ -206,7 +208,8 @@ module.exports.controllers = function(app) {
                 fs.mkdirSync(dirPath, 0755, true);
             }
 
-            fileName = AppUtils.randomObjectId() +'_'+ fileName;
+            var fileId = AppUtils.randomObjectId();
+            fileName = fileId +'_'+ fileName;
 
             logger.log('info', util.format('Saving video file[%s]', dirPath + fileName));
             require('fs').rename(req.files.file.path, dirPath + fileName, function(err) {
@@ -217,7 +220,8 @@ module.exports.controllers = function(app) {
                      res.json({
                         IsSuccess: true,
                         uri: dirPath + fileName,
-                        thumbnail: imageFile
+                        thumbnail: imageFile,
+                        fileId: fileId
                     });
                 });
             });
@@ -242,20 +246,6 @@ module.exports.controllers = function(app) {
     /**
      * Helper methods
      */
-    // function getIntParam(param) {
-    //     if (typeof param === 'string' && (/^\d+$/).test(param)) {
-    //         return parseInt(param, 10);
-    //     }
-    //     return null;
-    // }
-
-    // function getCountFunctionDefered(userId) {
-    //     var deferred = $.Deferred();
-    //     Video.count({ ownerId: userId }, function(err, count) {
-    //         deferred.resolve(count);
-    //     });
-    //     return deferred.promise();
-    // }
     function getCount(options, fn) {
         options = options || {};
         //Video.count({ ownerId: userId }, function(err, count) {
@@ -275,6 +265,15 @@ module.exports.controllers = function(app) {
             function (error, stdout, stderr) {      // one easy function to capture data/errors
             if (error) return fn(error, null);
             fn(null, imgFile);
+        });
+    }
+
+    function deleteVideoFiles(files) {
+        $.each(files, function(index, file) {
+            logger.log('info', util.format('Deleting file[%s]', file));
+            fs.unlink(file, function(err) {
+                if (err) { ControllerErrorHandler.logError(err); }
+            });
         });
     }
 
