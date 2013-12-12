@@ -2,7 +2,8 @@
  * Error handler for controllers
  */
 
-var logger = require('../shared/logger');
+var logger = require('../shared/logger'),
+    AppUtils = require('../shared/utils');
 
 exports.handleError = function(req, res, err, options) {
     options = options || {};
@@ -24,7 +25,7 @@ exports.handleError = function(req, res, err, options) {
     // Unhandled error
     else {
         if (includeErrorDetails) {
-            logger.log('error', err.message, getAllErrorInfo(err));
+            logger.log('error', err.message, AppUtils.getAllErrorInfo(err));
         } else {
             logger.log('error', err);
         }
@@ -36,23 +37,3 @@ exports.handleError = function(req, res, err, options) {
     }
 }
 
-exports.logError = function(err) {
-    logger.log('error', err.message, getAllErrorInfo(err));
-}
-
-/**
- * Helper methods
- */
-getAllErrorInfo = function(err) {
-    var info = {
-        name: err.name,
-        message: err.message,
-        status: err.status || null,
-        stack: err.stack || null,
-        //trace: err.trace || '',
-        // Local date, logs have a UTC timestamp already
-        date: err.date || new Date().toString()
-    };
-
-    return info;
-}

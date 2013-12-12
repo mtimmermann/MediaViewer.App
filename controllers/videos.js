@@ -100,7 +100,7 @@ module.exports.controllers = function(app) {
         delete videoObj.id;
 
         User.findById(req.session.user._id, function(err, user) {
-            if (err) { ControllerErrorHandler.logError(err); }
+            if (err) { AppUtils.logError(err); }
             if (user) {
                 videoObj.userLabel = util.format('%s %s', user.firstName, user.lastName);
             }
@@ -146,7 +146,7 @@ module.exports.controllers = function(app) {
         jsonModel.ownerId = req.session.user._id;
 
         User.findById(req.session.user._id, function(err, user) {
-            if (err) { ControllerErrorHandler.logError(err); }
+            if (err) { AppUtils.logError(err); }
             if (user) {
                 jsonModel.userLabel = util.format('%s %s', user.firstName, user.lastName);
             }
@@ -174,7 +174,7 @@ module.exports.controllers = function(app) {
                 }));
             }
             if (doc.ownerId === req.session.user._id) {
-                deleteVideoFiles([doc.uri, doc.thumbnail]);
+                AppUtils.deleteFiles([doc.uri, doc.thumbnail]);
                 Video.findByIdAndRemove(req.params.id, function(err, result) {
                     if (err) { return ControllerErrorHandler.handleError(req, res, err); }
                     res.send(JSON.stringify({ IsSuccess: true }));
@@ -272,7 +272,7 @@ module.exports.controllers = function(app) {
         $.each(files, function(index, file) {
             logger.log('info', util.format('Deleting file[%s]', file));
             fs.unlink(file, function(err) {
-                if (err) { ControllerErrorHandler.logError(err); }
+                if (err) { AppUtils.logError(err); }
             });
         });
     }
