@@ -242,6 +242,29 @@ module.exports.controllers = function(app) {
         }
     });
 
+    app.get('/video/orphans', function(req, res) {
+        var orphans = [];
+        Video.find(function(err, docs) {
+            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+            var deferred = $.Deferred();
+            $.each(docs, function(index, doc) {
+                User.findById(doc.ownerId, function(err, user) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    console.log(doc._id);
+                    if (!user) {
+                        orphans.push(doc);
+                    }
+                    if (index === docs.length -1) {
+                        deferred.resolve();
+                    }
+                });
+            });
+            $.when(deferred).done(function() {
+                res.send(JSON.stringify(orphans));
+            });
+        });
+    });
+
 
     /**
      * Helper methods
