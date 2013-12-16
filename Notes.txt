@@ -118,3 +118,8 @@ https://npmjs.org/package/flvee
 execSync nodejs module:
 https://npmjs.org/package/execSync
 
+HTML 5 Video encoding:
+http://docs.sublimevideo.net/encode-videos-for-the-web
+    Handbrake, open src video transcoder
+        http://handbrake.fr/
+

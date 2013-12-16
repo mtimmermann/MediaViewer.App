@@ -201,7 +201,7 @@ module.exports.controllers = function(app) {
         // TODO: Determine file type info with ffmpeg || ffprobe, don't trust the extension.
         // req.files.file.type
         var ext = pathUtil.extname(fileName).toLowerCase();
-        if ($.inArray(ext, ['.ogg', '.ogv', '.webm', '.mp4', '.mov']) >= 0) {
+        if ($.inArray(ext, ['.ogg', '.ogv', '.webm', '.mp4', '.mov', '.m4v']) >= 0) {
             var dirPath = 'media/'+ req.session.user._id +'/';
 
             if (!fs.existsSync(dirPath)) {
@@ -237,7 +237,7 @@ module.exports.controllers = function(app) {
 
             var err = new ApplicationError.FileTypeError(util.format(
                 'Cannot process file[%s], expecting file types: ' +
-                '.ogg, .webm, .mov', req.files.file.name));
+                '.ogg, .webm, .mov .m4v', req.files.file.name));
             err.status = 500;
             return ControllerErrorHandler.handleError(req, res, err);
         }
