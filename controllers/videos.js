@@ -10,7 +10,8 @@ var Video = require('../models/Video'),
     pathUtil = require('path'), // Node path module
     util = require('util'), // Node util module
     exec = require('child_process').exec,
-    $ = require('jquery');
+    $ = require('jquery'),
+    settings = require('../config/application.config').application;
 
 module.exports.controllers = function(app) {
 
@@ -303,8 +304,10 @@ module.exports.controllers = function(app) {
         var baseName = pathUtil.basename(videoFile, ext);
         var imgFile = pathUtil.dirname(videoFile) +'/'+ baseName +'.png';
 
+        var ffmpeg = settings.x64 ? 'ffmpeg ' : 'ffmpeg_32 ';
+
         var args = util.format('-i %s -ss 00:00:10.00 -f image2 -vframes 1 %s', videoFile, imgFile);
-        var child = exec('./ffmpeg/ffmpeg '+ args, // command line argument directly in string
+        var child = exec('./ffmpeg/'+ ffmpeg + args, // command line argument directly in string
             function (error, stdout, stderr) {      // one easy function to capture data/errors
             if (error) return fn(error, null);
             fn(null, imgFile);
