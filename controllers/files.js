@@ -40,7 +40,7 @@ module.exports.controllers = function(app) {
                                 if (err3) { return ControllerErrorHandler.handleError(req, res, err5); }
                                 if (!user) {
                                     orphans.push({ path: dirPath+file, type: 'directory' });
-                                    console.log(dirPath+file);
+                                    //console.log(dirPath+file);
                                 }
                                 fs.readdir(dirPath+file, function(err4, files2) {
                                     if (err4) { return ControllerErrorHandler.handleError(req, res, err4); }
@@ -52,11 +52,14 @@ module.exports.controllers = function(app) {
                                             if (err5) { return ControllerErrorHandler.handleError(req, res, err5); }
                                             if (!doc || (typeof doc === 'object' && $.isEmptyObject(doc))) {
                                                 orphans.push({ path: dirPath+file+'/'+file2, type: 'file' });
-                                                console.log(dirPath+file+'/'+file2);
+                                                //console.log(dirPath+file+'/'+file2);
                                             }
                                             if (index === files.length -1 && index2 === files2.length -1) {
-                                                console.log('deferred.done');
-                                                deferred.resolve(orphans);
+                                                // Delaying resolve. Without the delay orphan items can be missed.
+                                                setTimeout(function() {
+                                                    //console.log('deferred.done');
+                                                    deferred.resolve(orphans);
+                                                }, 500);
                                             }
                                         });
                                         // if (index === files.length -1 && index2 === files2.length -1) {

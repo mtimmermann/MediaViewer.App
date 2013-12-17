@@ -290,12 +290,15 @@ module.exports.controllers = function(app) {
                 Video.findByIdAndRemove(id, function(err, result) {
                     if (err) { return ControllerErrorHandler.handleError(req, res, err); }
                     if (index === orphanIds.length -1) {
-                        deferred.resolve();
+                        // Delaying resolve. Without the delay orphan items can be missed.
+                        setTimeout(function() {
+                            deferred.resolve(orphanIds);
+                        },500);
                     }
                 });
             });
         });
-        $.when(deferred).done(function() {
+        $.when(deferred.promise).done(function(orphanIds) {
             res.send(JSON.stringify({ totalRecords: orphanIds.length, data: orphanIds }));
         });
     });
