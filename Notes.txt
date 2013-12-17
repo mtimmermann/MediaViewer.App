@@ -47,7 +47,12 @@ Timestamps:
   // Exlude fields in returned json result
   http://stackoverflow.com/questions/11160955/how-to-exclude-some-fields-from-the-document
 
-
+  Backups:
+    Filesystem:
+      http://docs.mongodb.org/manual/tutorial/backup-databases-with-filesystem-snapshots/
+    Mongo tools mongodump
+      http://docs.mongodb.org/manual/tutorial/backup-databases-with-binary-database-dumps/
+        mongodump --host localhost --port 27017 --db mediaviewer
 
 Winston logging
 ----------------
