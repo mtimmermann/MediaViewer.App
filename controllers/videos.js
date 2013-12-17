@@ -152,7 +152,7 @@ module.exports.controllers = function(app) {
                 jsonModel.userLabel = util.format('%s %s', user.firstName, user.lastName);
             }
 
-            var video = new Video(jsonModel).save(function (err, doc) {
+            var video = Video(jsonModel).save(function (err, doc) {
                 if (err) { return ControllerErrorHandler.handleError(req, res, err); }
                 var result = doc.toObject();
                 result.id = doc._id;
@@ -201,7 +201,7 @@ module.exports.controllers = function(app) {
         // TODO: Determine file type info with ffmpeg || ffprobe, don't trust the extension.
         // req.files.file.type
         var ext = pathUtil.extname(fileName).toLowerCase();
-        if ($.inArray(ext, ['.ogg', '.ogv', '.webm', '.mp4', '.mov', '.m4v']) >= 0) {
+        if ($.inArray(ext, ['.ogg', '.ogv', '.webm', '.mp4', '.mov', '.m4v', '.mkv']) >= 0) {
             var dirPath = 'media/'+ req.session.user._id +'/';
 
             if (!fs.existsSync(dirPath)) {
@@ -215,14 +215,27 @@ module.exports.controllers = function(app) {
             logger.log('info', util.format('Saving video file[%s]', dirPath + fileName));
             require('fs').rename(req.files.file.path, dirPath + fileName, function(err) {
                 if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                getMetaData(dirPath + fileName, function(err, metaData) {
+                    if (err) {
+                        AppUtils.deleteFiles([dirPath + fileName]);
+                        return ControllerErrorHandler.handleError(req, res, err);
+                    }
+                    var duration = 0.0;
+                    if (metaData.format && metaData.format.duration) {
+                        duration = parseFloat(metaData.format.duration);
+                    }
 
-                createThumbnail(dirPath + fileName, function(err, imageFile) {
-                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-                     res.json({
-                        IsSuccess: true,
-                        uri: dirPath + fileName,
-                        thumbnail: imageFile,
-                        fileId: fileId
+                    createThumbnail(dirPath+fileName, duration, function(err2, imageFile) {
+                        if (err2) {
+                            AppUtils.deleteFiles([dirPath + fileName]);
+                            return ControllerErrorHandler.handleError(req, res, err2);
+                        }
+                        res.json({
+                            IsSuccess: true,
+                            uri: dirPath + fileName,
+                            thumbnail: imageFile,
+                            fileId: fileId
+                        });
                     });
                 });
             });
@@ -299,14 +312,15 @@ module.exports.controllers = function(app) {
         });
     }
 
-    function createThumbnail(videoFile, fn) {
+    function createThumbnail(videoFile, duration, fn) {
         var ext = pathUtil.extname(videoFile);
         var baseName = pathUtil.basename(videoFile, ext);
         var imgFile = pathUtil.dirname(videoFile) +'/'+ baseName +'.png';
 
         var ffmpeg = settings.x64 ? 'ffmpeg ' : 'ffmpeg_32 ';
+        var secSnapshot = duration > 10.0 ? '00:00:10.00' : '00:00:01.00';
 
-        var args = util.format('-i %s -ss 00:00:10.00 -f image2 -vframes 1 %s', videoFile, imgFile);
+        var args = util.format('-i %s -ss %s -f image2 -vframes 1 %s', videoFile, secSnapshot, imgFile);
         var child = exec('./ffmpeg/'+ ffmpeg + args, // command line argument directly in string
             function (error, stdout, stderr) {      // one easy function to capture data/errors
             if (error) return fn(error, null);
@@ -314,12 +328,19 @@ module.exports.controllers = function(app) {
         });
     }
 
-    function deleteVideoFiles(files) {
-        $.each(files, function(index, file) {
-            logger.log('info', util.format('Deleting file[%s]', file));
-            fs.unlink(file, function(err) {
-                if (err) { AppUtils.logError(err); }
-            });
+    function getMetaData(videoFile, fn) {
+
+        var ffprobe = settings.x64 ? 'ffprobe ' : 'ffprobe_32 ';
+        // http://stackoverflow.com/questions/7708373/get-ffmpeg-information-in-friendly-way
+        var args = util.format('-v quiet -print_format json -show_format -show_streams  %s', videoFile);
+        var child = exec('./ffmpeg/'+ ffprobe + args, // command line argument directly in string
+            function (error, stdout, stderr) {      // one easy function to capture data/errors
+            if (error) return fn(error, null);
+            var meta = null;
+            try {
+                meta = $.parseJSON(stdout);
+                return fn(null, meta);
+            } catch (e) { throw e; }
         });
     }
 
