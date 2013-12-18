@@ -52,7 +52,6 @@ module.exports.controllers = function(app) {
                                             if (err5) { return ControllerErrorHandler.handleError(req, res, err5); }
                                             if (!doc || (typeof doc === 'object' && $.isEmptyObject(doc))) {
                                                 orphans.push({ path: dirPath+file+'/'+file2, type: 'file' });
-                                                //console.log(dirPath+file+'/'+file2);
                                             }
                                             if (index === files.length -1 && index2 === files2.length -1) {
                                                 // Delaying resolve. Without the delay orphan items can be missed.
@@ -108,7 +107,67 @@ module.exports.controllers = function(app) {
     });
 
     app.delete('/file/orphans', ControllerAuth.admin, function(req, res) {
-        var orphanIds = req.body;
+        var orphanFiles = req.body;
+
+        if ($.isArray(orphanFiles)) {
+            console.log(orphanFiles);
+            $.each(orphanFiles, function(index, file) {
+
+                var deferredOrphanFile = $.Deferred(),
+                    deferredUser = $.Deferred(),
+                    deferredVideo = $.Deferred();
+
+                //var fileId = file.replace(/(([0-9,A-Z,a-z]){24})(_.*)/, '$1');
+                var fileId = file.replace(/(.*\/)(([0-9,A-Z,a-z]){24})(_.*)/, '$2');
+                var userId = file.replace(/(.*\/)(([0-9,A-Z,a-z]){24})(\/.*)/, '$2');
+
+                var user = true;
+                //var deferredUser = $.Deferred();
+                User.findById(userId, function(err, doc) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    if (!doc || (typeof doc === 'object' && $.isEmptyObject(doc))) {
+                        console.log('1.user: false');
+                        user = false;
+                    } else {
+                        console.log('1.user: true');
+                    }
+                    deferredUser.resolve();
+                });
+
+                var video = true;
+                //var deferredVideo = $.Deferred();
+                Video.find({ fileId: fileId }, function(err, doc) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    if (!doc || (typeof doc === 'object' && $.isEmptyObject(doc))) {
+                        console.log('1.video: false');
+                        video = false;
+                    } else {
+                        console.log('1.video: true');
+                    }
+                    // if (video) {
+                    //     console.log('1.video: true');
+                    // } else {
+                    //     console.log('1.video: false');
+                    // }
+                    deferredVideo.resolve();
+                });
+
+                //var userId = 
+                $.when.apply(null, [deferredUser, deferredVideo]).done(function() {
+                    console.log('fileId: '+ fileId);
+                    console.log('userId: '+ userId);
+                    console.log('2.user: '+ user);
+                    console.log('2.video: '+ video);
+                    if (user && video) {
+                        console.log('cancel');
+                    } else {
+                        console.log('delete');
+                        AppUtils.deleteFiles(orphanFiles);
+                        res.send(JSON.stringify({ totalRecords: orphanFiles.length, data: orphanFiles }));
+                    }
+                });
+            });
+        }
 
         // var deferred = $.Deferred();
         // $.each(orphanIds, function(index, id) {
