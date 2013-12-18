@@ -1,6 +1,5 @@
 var crypto = require('crypto'),
     logger = require('../shared/logger'),
-    //fs = require('fs'),
     fs = require('../vendor/node-fs'),
     util = require('util'), // Node util module
     $ = require('jquery');
@@ -17,11 +16,30 @@ exports.getIntParam = function(param) {
 }
 
 exports.deleteFiles = function(files) {
+
     $.each(files, function(index, file) {
-        logger.log('info', util.format('Deleting file[%s]', file));
-        fs.unlink(file, function(err) {
-            if (err) { logError(err); }
+        fs.lstat(file, function(err, stats) {
+            if (err) {
+                logError(err);
+            } else {
+                var type = stats.isDirectory() ? 'directory' : 'file'
+                logger.log('info', util.format('Deleting %s[%s]', type, file));
+                if (!stats.isDirectory()) {
+                    fs.unlink(file, function(err) {
+                        if (err) { logError(err); }
+                    });
+                } else {
+                    deleteDirectoryRecursive(file);
+                }
+            }
         });
+    });
+}
+
+deleteDirectoryRecursive = function(dirPath) {
+    var exec = require('child_process').exec,child;
+    child = exec('rm -rf '+ dirPath, function(err, out) { 
+        if (err) { logError(err); }
     });
 }
 

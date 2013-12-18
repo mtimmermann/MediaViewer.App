@@ -30,7 +30,7 @@ module.exports.controllers = function(app) {
                 if (err) { return ControllerErrorHandler.handleError(req, res, err); }
 
                 //var deferred = $.Deferred();
-                if (files.length === 0) { deferred.reslove(); }
+                if (files.length === 0) { deferred.resolve(orphans); }
                 $.each(files, function(index, file) {
                     fs.lstat(dirPath+file, function(err2, stats) {
                         if (err2) { return ControllerErrorHandler.handleError(req, res, err2); }
@@ -45,7 +45,7 @@ module.exports.controllers = function(app) {
                                 fs.readdir(dirPath+file, function(err4, files2) {
                                     if (err4) { return ControllerErrorHandler.handleError(req, res, err4); }
 
-                                    if (files2.length === 0) { deferred.reslove(); }
+                                    if (index === files.length -1 && files2.length === 0) { deferred.resolve(orphans); }
                                     $.each(files2, function(index2, file2) {
                                         fileId = file2.replace(/(([0-9,A-Z,a-z]){24})(_.*)/, '$1');
                                         Video.find({ fileId: fileId }, function(err5, doc) {
@@ -86,24 +86,6 @@ module.exports.controllers = function(app) {
         } else {
             res.send(JSON.stringify({ totalRecords: orphans.length, data: orphans }));
         }
-        // Video.find(function(err, docs) {
-        //     if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-        //     var deferred = $.Deferred();
-        //     $.each(docs, function(index, doc) {
-        //         User.findById(doc.ownerId, function(err, user) {
-        //             if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-        //             if (!user) {
-        //                 orphans.push(doc);
-        //             }
-        //             if (index === docs.length -1) {
-        //                 deferred.resolve();
-        //             }
-        //         });
-        //     });
-        //     $.when(deferred).done(function() {
-        //         res.send(JSON.stringify({ totalRecords: orphans.length, data: orphans }));
-        //     });
-        // });
     });
 
     app.delete('/file/orphans', ControllerAuth.admin, function(req, res) {
@@ -117,9 +99,26 @@ module.exports.controllers = function(app) {
             var deferredFiles = $.Deferred();
             $.each(orphanFiles, function(index, file) {
 
-                var fileId = file.replace(/(.*\/)(([0-9,A-Z,a-z]){24})(_.*)/, '$2');
-                var userId = file.replace(/(.*\/)(([0-9,A-Z,a-z]){24})(\/.*)/, '$2');
+                // Parse the userId & fileId from file name
+                var userId = '';
+                var userIdRegex = /^media\/([0-9,A-Z,a-z]{24}).*/
+                if ((userIdRegex).test(file)) {
+                    userId = file.replace(userIdRegex, '$1');
+                }
+                var fileId = '';
+                var fileIdRegex = /.*\/[0-9,A-Z,a-z]{24}\/([0-9,A-Z,a-z]{24})_.*/;
+                if ((fileIdRegex).test(file)) {
+                    fileId = file.replace(fileIdRegex, '$1');
+                }
 
+                // Check if input file path is a directory
+                var deferredLstat = $.Deferred();
+                fs.lstat(file, function(err, stats) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    deferredLstat.resolve(stats.isDirectory());
+                });
+
+                // Check if file is attached to a user db record
                 var user = true;
                 var deferredUser = $.Deferred();
                 User.findById(userId, function(err, doc) {
@@ -130,14 +129,22 @@ module.exports.controllers = function(app) {
                     deferredUser.resolve();
                 });
 
+                // Check if file is attached to a video db record
                 var video = true;
                 var deferredVideo = $.Deferred();
-                Video.find({ fileId: fileId }, function(err, doc) {
-                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-                    if (!doc || (typeof doc === 'object' && $.isEmptyObject(doc))) {
+                $.when(deferredLstat.promise()).done(function(isDirectory) {
+                    if (isDirectory) {
                         video = false;
+                        deferredVideo.resolve();
+                    } else {
+                        Video.find({ fileId: fileId }, function(err, doc) {
+                            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                            if (!doc || (typeof doc === 'object' && $.isEmptyObject(doc))) {
+                                video = false;
+                            }
+                            deferredVideo.resolve();
+                        });
                     }
-                    deferredVideo.resolve();
                 });
 
                 $.when.apply(null, [deferredUser, deferredVideo]).done(function() {
@@ -147,6 +154,7 @@ module.exports.controllers = function(app) {
                             ' record', file, userId, fileId));
                         fileSkipList.push(file);
                     } else {
+                        // Safe to delete, file not attached to db user or video record
                         fileDeleteList.push(file);
                     }
                 });
