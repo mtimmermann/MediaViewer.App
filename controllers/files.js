@@ -94,7 +94,7 @@ module.exports.controllers = function(app) {
         var fileDeleteList = [];
         var fileSkipList = [];
 
-        if ($.isArray(orphanFiles)) {
+        if ($.isArray(orphanFiles) && orphanFiles.length > 0) {
 
             var deferredFiles = $.Deferred();
             $.each(orphanFiles, function(index, file) {
@@ -185,7 +185,12 @@ module.exports.controllers = function(app) {
                 });
             });
         } else {
-            res.send(JSON.stringify({}));
+            res.statusCode = 406;
+            res.send(JSON.stringify({
+                code: res.statusCode,
+                message: 'Not Acceptable',
+                description: 'Reqest is missing required body parameters'
+            }));
         }
     });
 
