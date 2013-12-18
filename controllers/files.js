@@ -168,18 +168,21 @@ module.exports.controllers = function(app) {
             });
 
             $.when(deferredFiles.promise()).done(function(deleteList, skipList) {
-                AppUtils.deleteFiles(deleteList);
+                //AppUtils.deleteFiles(deleteList);
                 //if (skipList.length > 0) { res.statusCode = 409; }
-                res.send(JSON.stringify(
-                    {
-                        totalFilesDeleted: deleteList.length,
-                        totalFilesSkiped: skipList.length,
-                        data: {
-                            deleted: [deleteList],
-                            skiped: [skipList]
+                AppUtils.deleteFiles(deleteList, function(err) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    res.send(JSON.stringify(
+                        {
+                            totalFilesDeleted: deleteList.length,
+                            totalFilesSkiped: skipList.length,
+                            data: {
+                                deleted: [deleteList],
+                                skiped: [skipList]
+                            }
                         }
-                    }
-                ));
+                    ));
+                });
             });
         } else {
             res.send(JSON.stringify({}));

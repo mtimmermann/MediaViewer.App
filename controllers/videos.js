@@ -186,10 +186,12 @@ module.exports.controllers = function(app) {
                 }));
             }
             if (doc.ownerId === req.session.user._id) {
-                AppUtils.deleteFiles([doc.uri, doc.thumbnail]);
-                Video.findByIdAndRemove(req.params.id, function(err, result) {
-                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-                    res.send(JSON.stringify({ IsSuccess: true }));
+                AppUtils.deleteFiles([doc.uri, doc.thumbnail], function(err2) {
+                    if (err2) { return ControllerErrorHandler.handleError(req, res, err2); }
+                    Video.findByIdAndRemove(req.params.id, function(err3, result) {
+                        if (err3) { return ControllerErrorHandler.handleError(req, res, err3); }
+                        res.send(JSON.stringify({ IsSuccess: true }));
+                    });
                 });
             } else {
                 // User does not own video, not authorized
@@ -226,10 +228,10 @@ module.exports.controllers = function(app) {
             logger.log('info', util.format('Saving video file[%s]', dirPath + fileName));
             require('fs').rename(req.files.file.path, dirPath + fileName, function(err) {
                 if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-                getMetaData(dirPath + fileName, function(err, metaData) {
-                    if (err) {
-                        AppUtils.deleteFiles([dirPath + fileName]);
-                        return ControllerErrorHandler.handleError(req, res, err);
+                getMetaData(dirPath + fileName, function(err2, metaData) {
+                    if (err2) {
+                        AppUtils.deleteFiles([dirPath + fileName]/*, callbackfn = null*/);
+                        return ControllerErrorHandler.handleError(req, res, err2);
                     }
 
                     var duration = 0.0;
@@ -237,9 +239,9 @@ module.exports.controllers = function(app) {
                         duration = parseFloat(metaData.format.duration);
                     }
 
-                    createThumbnail(dirPath+fileName, duration, function(err2, imageFile) {
-                        if (err2) {
-                            AppUtils.deleteFiles([dirPath + fileName]);
+                    createThumbnail(dirPath+fileName, duration, function(err3, imageFile) {
+                        if (err3) {
+                            AppUtils.deleteFiles([dirPath + fileName]/*, callbackfn = null*/);
                             return ControllerErrorHandler.handleError(req, res, err2);
                         }
                         res.json({
@@ -298,9 +300,9 @@ module.exports.controllers = function(app) {
             Video.findById(id, function(err, doc) {
                 if (err) { return ControllerErrorHandler.handleError(req, res, err); }
 
-                AppUtils.deleteFiles([doc.uri, doc.thumbnail]);
-                Video.findByIdAndRemove(id, function(err, result) {
-                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                AppUtils.deleteFiles([doc.uri, doc.thumbnail]/*, callbackfn = null*/);
+                Video.findByIdAndRemove(id, function(err2, result) {
+                    if (err2) { return ControllerErrorHandler.handleError(req, res, err); }
                     if (index === orphanIds.length -1) {
                         // Delaying resolve. Without the delay orphan items can be missed.
                         setTimeout(function() {
