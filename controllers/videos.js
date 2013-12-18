@@ -122,12 +122,18 @@ module.exports.controllers = function(app) {
                     // https://github.com/LearnBoost/mongoose/issues/964
                     //Video.findByIdAndUpdate(req.params.id, videoObj, { new: true }, function(err, doc) {
                     video = $.extend(video, videoObj);
-                    video.save(function(err, doc) {
+
+                    getMetaData(video.uri, function(err, metaData) {
                         if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-                        var result = doc.toObject();
-                        result.id = doc._id;
-                        delete result._id;
-                        res.send(JSON.stringify(result));
+                        video.meta = buildVideoMetaData(metaData);
+
+                        video.save(function(err, doc) {
+                            if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                            var result = doc.toObject();
+                            result.id = doc._id;
+                            delete result._id;
+                            res.send(JSON.stringify(result));
+                        });
                     });
                 } else {
                     // User does not own video, not authorized
@@ -152,12 +158,17 @@ module.exports.controllers = function(app) {
                 jsonModel.userLabel = util.format('%s %s', user.firstName, user.lastName);
             }
 
-            var video = Video(jsonModel).save(function (err, doc) {
+            getMetaData(jsonModel.uri, function(err, metaData) {
                 if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-                var result = doc.toObject();
-                result.id = doc._id;
-                delete result._id;
-                res.send(JSON.stringify(result));
+                jsonModel.meta = buildVideoMetaData(metaData);
+
+                var video = Video(jsonModel).save(function (err, doc) {
+                    if (err) { return ControllerErrorHandler.handleError(req, res, err); }
+                    var result = doc.toObject();
+                    result.id = doc._id;
+                    delete result._id;
+                    res.send(JSON.stringify(result));
+                });
             });
         });
     });
@@ -220,6 +231,7 @@ module.exports.controllers = function(app) {
                         AppUtils.deleteFiles([dirPath + fileName]);
                         return ControllerErrorHandler.handleError(req, res, err);
                     }
+
                     var duration = 0.0;
                     if (metaData.format && metaData.format.duration) {
                         duration = parseFloat(metaData.format.duration);
@@ -347,4 +359,49 @@ module.exports.controllers = function(app) {
         });
     }
 
+    function buildVideoMetaData(metaRaw) {
+        //var meta = { streams: [], format: {} };
+        var meta = { format: {} };
+
+        // Build format properties
+        if (metaRaw.format) {
+            var propertyList = ['format_name', 'format_long_name',
+                'duration', 'size'];//, 'bit_rate', 'nb_streams'];
+            meta.format = buildMetaProperties(metaRaw.format, propertyList);
+        }
+        if (typeof meta.format.duration === 'string' && (/^\d*\.?\d*$/).test(meta.format.duration)) {
+            meta.format.duration = parseFloat(meta.format.duration);
+        } else {
+            delete meta.format.duration;
+        }
+
+        // Build stream properties
+        if ($.isArray(metaRaw.streams)) {
+            //var propertyList = ['index', 'codec_name', 'codec_long_name',
+            //    'codec_type', 'sample_rate', 'bit_rate', 'width', 'height'];
+            $.each(metaRaw.streams, function(index, stream) {
+                //meta.streams.push( buildMetaProperties(stream, propertyList) );
+
+                // Copy width and height to meta.format
+                if (stream.codec_type && stream.codec_type === 'video') {
+                    if (stream.width && stream.height) {
+                        meta.format.width = stream.width;
+                        meta.format.height = stream.height;
+                    }
+                }
+            });
+        }
+
+        return meta;
+    }
+
+    function buildMetaProperties(objRaw, propertyList) {
+        var container = {};
+        $.each(propertyList, function(index, prop) {
+            if (objRaw[prop]) {
+                container[prop] = objRaw[prop];
+            }
+        });
+        return container;
+    }
 }

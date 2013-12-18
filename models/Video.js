@@ -15,7 +15,8 @@ var VideoSchema = MediaItem.extend({
     //origFileName: { type: String, required: true },
     origFileName: String,
     origVideoType: String,
-    origExt: String
+    origExt: String,
+    meta: Object
 });
 
 VideoSchema.set('toJSON', { 
