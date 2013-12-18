@@ -109,83 +109,73 @@ module.exports.controllers = function(app) {
     app.delete('/file/orphans', ControllerAuth.admin, function(req, res) {
         var orphanFiles = req.body;
 
+        var fileDeleteList = [];
+        var fileSkipList = [];
+
         if ($.isArray(orphanFiles)) {
-            console.log(orphanFiles);
+
+            var deferredFiles = $.Deferred();
             $.each(orphanFiles, function(index, file) {
 
-                var deferredOrphanFile = $.Deferred(),
-                    deferredUser = $.Deferred(),
-                    deferredVideo = $.Deferred();
-
-                //var fileId = file.replace(/(([0-9,A-Z,a-z]){24})(_.*)/, '$1');
                 var fileId = file.replace(/(.*\/)(([0-9,A-Z,a-z]){24})(_.*)/, '$2');
                 var userId = file.replace(/(.*\/)(([0-9,A-Z,a-z]){24})(\/.*)/, '$2');
 
                 var user = true;
-                //var deferredUser = $.Deferred();
+                var deferredUser = $.Deferred();
                 User.findById(userId, function(err, doc) {
                     if (err) { return ControllerErrorHandler.handleError(req, res, err); }
                     if (!doc || (typeof doc === 'object' && $.isEmptyObject(doc))) {
-                        console.log('1.user: false');
                         user = false;
-                    } else {
-                        console.log('1.user: true');
                     }
                     deferredUser.resolve();
                 });
 
                 var video = true;
-                //var deferredVideo = $.Deferred();
+                var deferredVideo = $.Deferred();
                 Video.find({ fileId: fileId }, function(err, doc) {
                     if (err) { return ControllerErrorHandler.handleError(req, res, err); }
                     if (!doc || (typeof doc === 'object' && $.isEmptyObject(doc))) {
-                        console.log('1.video: false');
                         video = false;
-                    } else {
-                        console.log('1.video: true');
                     }
-                    // if (video) {
-                    //     console.log('1.video: true');
-                    // } else {
-                    //     console.log('1.video: false');
-                    // }
                     deferredVideo.resolve();
                 });
 
-                //var userId = 
                 $.when.apply(null, [deferredUser, deferredVideo]).done(function() {
-                    console.log('fileId: '+ fileId);
-                    console.log('userId: '+ userId);
-                    console.log('2.user: '+ user);
-                    console.log('2.video: '+ video);
                     if (user && video) {
-                        console.log('cancel');
+                        logger.log('warn', util.format('Skipping deletion of file:"%s" ' +
+                            'File is either attached to user:"%s" or video with fileId:"%s" '+
+                            ' record', file, userId, fileId));
+                        fileSkipList.push(file);
                     } else {
-                        console.log('delete');
-                        AppUtils.deleteFiles(orphanFiles);
-                        res.send(JSON.stringify({ totalRecords: orphanFiles.length, data: orphanFiles }));
+                        fileDeleteList.push(file);
                     }
                 });
+
+                if (index === orphanFiles.length -1 ) {
+                    // Delaying resolve. Without the delay orphan items can be missed.
+                    setTimeout(function() {
+                        deferredFiles.resolve(fileDeleteList, fileSkipList);
+                    }, 500);
+                }
             });
+
+            $.when(deferredFiles.promise()).done(function(deleteList, skipList) {
+                AppUtils.deleteFiles(deleteList);
+                //if (skipList.length > 0) { res.statusCode = 409; }
+                res.send(JSON.stringify(
+                    {
+                        totalFilesDeleted: deleteList.length,
+                        totalFilesSkiped: skipList.length,
+                        data: {
+                            deleted: [deleteList],
+                            skiped: [skipList]
+                        }
+                    }
+                ));
+            });
+        } else {
+            res.send(JSON.stringify({}));
         }
-
-        // var deferred = $.Deferred();
-        // $.each(orphanIds, function(index, id) {
-        //     Video.findById(id, function(err, doc) {
-        //         if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-
-        //         AppUtils.deleteFiles([doc.uri, doc.thumbnail]);
-        //         Video.findByIdAndRemove(id, function(err, result) {
-        //             if (err) { return ControllerErrorHandler.handleError(req, res, err); }
-        //             if (index === orphanIds.length -1) {
-        //                 deferred.resolve();
-        //             }
-        //         });
-        //     });
-        // });
-        // $.when(deferred).done(function() {
-        //     res.send(JSON.stringify({ totalRecords: orphanIds.length, data: orphanIds }));
-        // });
     });
 
     /**
